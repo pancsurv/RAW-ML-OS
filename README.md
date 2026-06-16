@@ -1,5 +1,7 @@
 # RAW-ML-OS
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20724219.svg)](https://doi.org/10.5281/zenodo.20724219)
+
 Machine learning survival prediction models for pancreatic ductal adenocarcinoma (PDAC) following pancreatoduodenectomy.
 
 This repository contains the analysis code accompanying the manuscript *"Development and External Validation of Machine Learning-Based Survival Prediction Models for Pancreatic Ductal Adenocarcinoma Following Pancreatoduodenectomy."* The models were developed on the international, multicentre Recurrence After Whipple's (RAW) study cohort (ClinicalTrials.gov NCT04596865) and externally validated on an independent single-centre cohort.
@@ -65,6 +67,12 @@ The patient-level datasets are not included in this repository because they cont
 ## Reproducibility
 
 All scripts use a fixed random seed (42). Missing data are handled with multiple imputation by chained equations (MICE, M = 10). The training-derived imputers and scalers are saved and applied to the test and external sets without refitting to prevent data leakage. Internal and external validation both pool predictions across all M imputations (risks are averaged; survival probabilities are averaged across the common training time grid).
+
+## Citation
+
+If you use this code, please cite the archived release:
+
+> RAW-ML-OS: Machine learning survival prediction models for pancreatic ductal adenocarcinoma following pancreatoduodenectomy. Zenodo. https://doi.org/10.5281/zenodo.20724219
 
 ## License
 
