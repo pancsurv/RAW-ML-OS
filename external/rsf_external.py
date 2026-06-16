@@ -20,10 +20,9 @@ from sksurv.util import Surv
 warnings.filterwarnings('ignore', message='X has feature names')
 warnings.filterwarnings('ignore', message='X does not have valid feature names')
 
-MODEL_PATH        = 'rsf_model.joblib'
-
-SCALER_PATH       = 'scaler_rsf.joblib'
-IMPUTER_PATH      = 'imputer_rsf.joblib'
+MODELS_PATH       = 'rsf_models_mice.joblib'
+SCALERS_PATH      = 'scalers_rsf_mice.joblib'
+IMPUTERS_PATH     = 'imputers_rsf_mice.joblib'
 
 Y_TRAIN_CSV_PATH  = 'y_train.csv'
 EXTERNAL_CSV_PATH = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "cambook_cleaned.csv")
@@ -49,17 +48,35 @@ FEATURES = [
     'asa_age', 'adjchemo_LNR'
 ]
 
-def evaluate_external_rsf(model_path, scaler_path, imputer_path,
+def evaluate_external_rsf(models_path, scalers_path, imputers_path,
                            y_train_csv, external_csv):
-    print("Loading model and preprocessors...")
+    print("Loading pooled models and preprocessors...")
 
-    for path in [model_path, scaler_path, imputer_path, y_train_csv]:
+    for path in [models_path, scalers_path, imputers_path, y_train_csv]:
         if not os.path.exists(path):
             return {"error": f"Required file not found: {path}"}
 
-    rsf_model = joblib.load(model_path)
-    scaler    = joblib.load(scaler_path)
-    imputer   = joblib.load(imputer_path)
+    rsf_models = joblib.load(models_path)
+    scalers    = joblib.load(scalers_path)
+    imputers   = joblib.load(imputers_path)
+    M = len(rsf_models)
+    print(f"Loaded {M} pooled RSF imputation models.")
+
+    def pooled_risk(frame):
+        preds = np.zeros((M, len(frame)))
+        for m in range(M):
+            Xs = scalers[m].transform(imputers[m].transform(frame[FEATURES]))
+            preds[m] = rsf_models[m].predict(Xs)
+        return preds.mean(axis=0)
+
+    def pooled_surv_probs(frame, times):
+        times = np.asarray(times, dtype=float)
+        acc = np.zeros((len(frame), len(times)))
+        for m in range(M):
+            Xs = scalers[m].transform(imputers[m].transform(frame[FEATURES]))
+            fns = rsf_models[m].predict_survival_function(Xs)
+            acc += np.array([[fn(t) for t in times] for fn in fns])
+        return acc / M
 
     y_train_df = pd.read_csv(y_train_csv)
     y_train_sksurv = Surv.from_arrays(
@@ -134,10 +151,11 @@ def evaluate_external_rsf(model_path, scaler_path, imputer_path,
     X_full  = df[FEATURES]
     y_full  = Surv.from_arrays(df['event'].astype(bool), df['OS_months'])
 
-    X_imp   = pd.DataFrame(imputer.transform(X_full), columns=FEATURES)
-    X_sc    = pd.DataFrame(scaler.transform(X_imp.values), columns=FEATURES)
+    X_sc1   = pd.DataFrame(
+        scalers[0].transform(imputers[0].transform(X_full)), columns=FEATURES
+    )
 
-    risk_full = rsf_model.predict(X_sc)
+    risk_full = pooled_risk(df)
 
     print("\nRunning 1000 bootstrap iterations for C-index...")
     n_bootstraps = 1000
@@ -149,18 +167,14 @@ def evaluate_external_rsf(model_path, scaler_path, imputer_path,
 
         df_boot      = resample(df, replace=True, random_state=i)
         df_boot = engineer_features(df_boot)
-        X_boot       = df_boot[FEATURES]
         y_boot_event = df_boot['event'].astype(bool)
         y_boot_time  = df_boot['OS_months']
 
         if len(np.unique(y_boot_event)) < 2:
             continue
 
-        X_imp_b = pd.DataFrame(imputer.transform(X_boot), columns=FEATURES)
-        X_sc_b  = pd.DataFrame(scaler.transform(X_imp_b.values), columns=FEATURES)
-
         try:
-            r = rsf_model.predict(X_sc_b)
+            r = pooled_risk(df_boot)
             c = concordance_index_censored(y_boot_event, y_boot_time, r)[0]
             c_indices.append(c)
         except ValueError:
@@ -258,8 +272,7 @@ def evaluate_external_rsf(model_path, scaler_path, imputer_path,
     )
     if len(brier_eval_times) > 0:
         try:
-            surv_funcs = rsf_model.predict_survival_function(X_sc)
-            est_probs  = np.array([[fn(t) for t in brier_eval_times] for fn in surv_funcs])
+            est_probs  = pooled_surv_probs(df, brier_eval_times)
 
             times_bs, bs_scores = brier_score(
                 y_train_sksurv, y_full, est_probs, brier_eval_times
@@ -279,13 +292,13 @@ def evaluate_external_rsf(model_path, scaler_path, imputer_path,
     cal_times = [t for t in [12, 36, 48] if min_t <= t < max_t]
     if cal_times:
         try:
-            surv_funcs = rsf_model.predict_survival_function(X_sc)
+            cal_probs  = pooled_surv_probs(df, cal_times)
             fig, axes  = plt.subplots(1, len(cal_times), figsize=(6 * len(cal_times), 5))
             if len(cal_times) == 1:
                 axes = [axes]
 
-            for ax, t in zip(axes, cal_times):
-                pred_surv = np.array([fn(t) for fn in surv_funcs])
+            for j, (ax, t) in enumerate(zip(axes, cal_times)):
+                pred_surv = cal_probs[:, j]
                 n_bins    = 10
                 quantiles = np.unique(
                     np.percentile(pred_surv, np.linspace(0, 100, n_bins + 1))
@@ -319,14 +332,14 @@ def evaluate_external_rsf(model_path, scaler_path, imputer_path,
 
     print("\nGenerating SHAP analysis (PermutationExplainer)...")
     try:
-        X_shap = np.asarray(X_sc, dtype=float)
+        X_shap = np.asarray(X_sc1, dtype=float)
         bg_idx = np.random.default_rng(42).choice(len(X_shap),
                                                    min(50, len(X_shap)),
                                                    replace=False)
         bg_data = X_shap[bg_idx]
 
         def rsf_predict_shap(X):
-            return rsf_model.predict(np.asarray(X, dtype=float))
+            return rsf_models[0].predict(np.asarray(X, dtype=float))
 
         explainer = shap.explainers.Permutation(
             rsf_predict_shap,
@@ -393,7 +406,7 @@ def evaluate_external_rsf(model_path, scaler_path, imputer_path,
 
 if __name__ == "__main__":
     res = evaluate_external_rsf(
-        MODEL_PATH, SCALER_PATH, IMPUTER_PATH,
+        MODELS_PATH, SCALERS_PATH, IMPUTERS_PATH,
         Y_TRAIN_CSV_PATH, EXTERNAL_CSV_PATH
     )
     print("\n--- External RSF Validation Results ---")

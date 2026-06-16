@@ -60,19 +60,21 @@ def bootstrapped_c_index(durations, events, scores, n_iter=1000, seed=42):
 
 def main():
     try:
-        COX_MODEL_PATH = "cox_model.pkl"
-        SCALER_PATH    = "scaler_cox.save"
-        IMPUTER_PATH   = "imputer_cox.joblib"
-        Y_TRAIN_CSV    = "y_train_cox.csv"
-        EXTERNAL_CSV   = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "cambook_cleaned.csv")
+        COX_MODELS_PATH = "cox_models_mice.joblib"
+        SCALERS_PATH    = "scalers_cox_mice.joblib"
+        IMPUTERS_PATH   = "imputers_cox_mice.joblib"
+        Y_TRAIN_CSV     = "y_train_cox.csv"
+        EXTERNAL_CSV    = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "cambook_cleaned.csv")
 
-        for p in [COX_MODEL_PATH, SCALER_PATH, IMPUTER_PATH, EXTERNAL_CSV]:
+        for p in [COX_MODELS_PATH, SCALERS_PATH, IMPUTERS_PATH, EXTERNAL_CSV]:
             if not os.path.exists(p):
                 raise FileNotFoundError(f"Required file not found: {p}")
 
-        cph     = joblib.load(COX_MODEL_PATH)
-        scaler  = joblib.load(SCALER_PATH)
-        imputer = joblib.load(IMPUTER_PATH)
+        cox_models = joblib.load(COX_MODELS_PATH)
+        scalers    = joblib.load(SCALERS_PATH)
+        imputers   = joblib.load(IMPUTERS_PATH)
+        M = len(cox_models)
+        logging.info(f"Loaded {M} pooled Cox imputation models.")
 
         if os.path.exists(Y_TRAIN_CSV):
             y_tr = pd.read_csv(Y_TRAIN_CSV)
@@ -149,14 +151,21 @@ def main():
         logging.info(f"External cohort: {len(df)} patients, "
                      f"{int(df['event'].sum())} events ({df['event'].mean()*100:.1f}%).")
 
-        X_imp    = imputer.transform(df[FEATURES])
-        X_scaled = scaler.transform(X_imp)
-
-        X_df       = pd.DataFrame(X_scaled, columns=FEATURES)
         durations  = df["OS_months"].values
         events_arr = df["event"].values
 
-        risk_scores = cph.predict_partial_hazard(X_df).values.flatten()
+        risks_all = np.zeros((M, len(df)))
+        surv_list = []
+        for m in range(M):
+            X_imp_m = imputers[m].transform(df[FEATURES])
+            X_sc_m  = scalers[m].transform(X_imp_m)
+            X_df_m  = pd.DataFrame(X_sc_m, columns=FEATURES)
+            risks_all[m] = cox_models[m].predict_partial_hazard(X_df_m).values.flatten()
+            surv_list.append(cox_models[m].predict_survival_function(X_df_m))
+
+        risk_scores  = risks_all.mean(axis=0)
+        pooled_t_idx = surv_list[0].index.values
+        pooled_probs = np.mean([s.values for s in surv_list], axis=0)
 
         c_est, (ci_lo, ci_hi) = bootstrapped_c_index(
             durations, events_arr, -risk_scores, n_iter=1000
@@ -213,9 +222,8 @@ def main():
                 mean_auc = float('nan')
                 logging.warning("No AUC time points could be computed due to IPCW constraints.")
 
-            surv_df    = cph.predict_survival_function(X_df)
-            t_idx      = surv_df.index.values
-            probs      = surv_df.values
+            t_idx      = pooled_t_idx
+            probs      = pooled_probs
             brier_eval = np.array([t for t in [12.0, 36.0, 58.0]
                                    if t < durations.max()], dtype=float)
 
@@ -238,9 +246,8 @@ def main():
 
         cal_times = [t for t in [12, 36, 48] if t < durations.max()]
         if cal_times:
-            surv_df = cph.predict_survival_function(X_df)
-            t_idx   = surv_df.index.values
-            probs   = surv_df.values
+            t_idx   = pooled_t_idx
+            probs   = pooled_probs
 
             fig, axes = plt.subplots(1, len(cal_times), figsize=(6 * len(cal_times), 5))
             if len(cal_times) == 1:
