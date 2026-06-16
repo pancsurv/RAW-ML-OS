@@ -527,8 +527,10 @@ def main():
         print(f"  Cox risks:     n={len(cox_risks)}, "
               f"range [{cox_risks.min():.3f}, {cox_risks.max():.3f}]")
     except Exception as e:
-        print(f"  Cox load failed: {e}. Using placeholder zeros.")
-        cox_risks = np.zeros(len(OS))
+        raise RuntimeError(
+            f"Cox risk scores could not be computed: {e}. "
+            f"Aborting rather than substituting placeholder values."
+        ) from e
 
     try:
         rsf_risks = get_rsf_risks(X_test_shared.reset_index(drop=True),
@@ -536,8 +538,10 @@ def main():
         print(f"  RSF risks:     n={len(rsf_risks)}, "
               f"range [{rsf_risks.min():.3f}, {rsf_risks.max():.3f}]")
     except Exception as e:
-        print(f"  RSF load failed: {e}. Using placeholder zeros.")
-        rsf_risks = np.zeros(len(OS))
+        raise RuntimeError(
+            f"RSF risk scores could not be computed: {e}. "
+            f"Aborting rather than substituting placeholder values."
+        ) from e
 
     try:
         ds_risks = get_deepsurv_risks(X_test_shared.reset_index(drop=True),
@@ -545,16 +549,20 @@ def main():
         print(f"  DeepSurv risks: n={len(ds_risks)}, "
               f"range [{ds_risks.min():.3f}, {ds_risks.max():.3f}]")
     except Exception as e:
-        print(f"  DeepSurv load failed: {e}. Using placeholder zeros.")
-        ds_risks = np.zeros(len(OS))
+        raise RuntimeError(
+            f"DeepSurv risk scores could not be computed: {e}. "
+            f"Aborting rather than substituting placeholder values."
+        ) from e
 
     try:
         tnm_risks = get_tnm_risks(data, y_test_shared)
         print(f"  TNM risks:      n={len(tnm_risks)}, "
               f"range [{tnm_risks.min():.3f}, {tnm_risks.max():.3f}]")
     except Exception as e:
-        print(f"  TNM load failed: {e}. Using placeholder zeros.")
-        tnm_risks = np.zeros(len(OS))
+        raise RuntimeError(
+            f"TNM risk scores could not be computed: {e}. "
+            f"Aborting rather than substituting placeholder values."
+        ) from e
 
     n = min(len(OS), len(cox_risks), len(rsf_risks), len(ds_risks), len(tnm_risks))
     OS        = OS[:n]
