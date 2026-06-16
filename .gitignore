@@ -1,0 +1,30 @@
+# Data (patient-level data is not shared)
+*.csv
+*.xlsx
+*.xls
+
+# Trained model artefacts and scalers
+*.joblib
+*.pkl
+*.save
+*.pt
+*.pth
+
+# Generated figures and outputs
+*.png
+*.pdf
+*.svg
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
