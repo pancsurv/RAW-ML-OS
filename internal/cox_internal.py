@@ -36,9 +36,7 @@ RAW_COLS = ['age', 'bmi', 'asa', 'adjchemo',
             'histotumoursize', 'histoT', 'histoN', 'differentiation',
             'totnodes', 'posnodes', 'rstatus', 'albumin', 'bilirubin', 'NLR']
 
-print("=" * 70)
 print("COX MODEL - MICE IMPUTATION (M=10) + RUBIN'S RULES")
-print("=" * 70)
 
 data = pd.read_csv(DATA_PATH, na_values=['#NUM!'])
 
@@ -122,9 +120,7 @@ miss = X_train_raw.isna().mean() * 100
 for col, pct in miss[miss > 0].sort_values(ascending=False).items():
     print(f"  {col:<25} {pct:.1f}%")
 
-print(f"\n{'='*70}")
 print(f"MICE IMPUTATION (M={M}, max_iter={MAX_ITER}, estimator=BayesianRidge)")
-print(f"{'='*70}")
 
 imputers  = []
 scalers   = []
@@ -158,9 +154,7 @@ joblib.dump(imputers, 'imputers_cox_mice.joblib')
 joblib.dump(scalers,  'scalers_cox_mice.joblib')
 print(f"\nSaved: imputers_cox_mice.joblib, scalers_cox_mice.joblib")
 
-print(f"\n{'='*70}")
 print(f"FITTING {M} COX MODELS")
-print(f"{'='*70}")
 
 cox_models = []
 coefs_list  = []
@@ -187,14 +181,12 @@ joblib.dump(cox_models[0], 'cox_model.pkl')
 joblib.dump(imputers[0],   'imputer_cox.joblib')
 joblib.dump(scalers[0],    'scaler_cox.save')
 print(f"\nSaved: cox_models_mice.joblib")
-print(f"Saved: cox_model.pkl, imputer_cox.joblib, scaler_cox.save (imputation 1, backward compat.)")
+print(f"Saved: cox_model.pkl, imputer_cox.joblib, scaler_cox.save (imputation 1)")
 
 coefs_arr = np.array(coefs_list)
 vars_arr  = np.array(vars_list)
 
-print(f"\n{'='*70}")
 print(f"RUBIN'S RULES POOLING")
-print(f"{'='*70}")
 
 Q_bar = coefs_arr.mean(axis=0)
 W     = vars_arr.mean(axis=0)
@@ -235,7 +227,6 @@ pooled_summary['sig'] = pooled_summary['p_value'].apply(
 
 print("\nPooled Cox Model (Rubin's Rules):")
 print(f"{'Feature':<20} {'HR':>6} {'95% CI':>18} {'p':>8} {'FMI':>6} {'Sig':>4}")
-print("-" * 68)
 for _, row in pooled_summary.iterrows():
     print(f"  {row['feature']:<18} {row['HR']:>6.3f} "
           f"({row['CI_lo_95']:.3f}-{row['CI_hi_95']:.3f}) "
@@ -275,9 +266,7 @@ def pooled_survival_at_times(times):
         surv_all[m] = sf.values.T
     return surv_all.mean(axis=0)
 
-print(f"\n{'='*70}")
 print(f"TEST SET PERFORMANCE (pooled predictions)")
-print(f"{'='*70}")
 
 c_index = concordance_index(
     y_test['OS_months'], -pooled_test_risks, y_test['event']
@@ -336,18 +325,14 @@ all_surv  = pooled_survival_at_times(all_times)
 ibs = integrated_brier_score(y_train_sksurv, y_test_sksurv, all_surv, all_times)
 print(f"  IBS: {ibs:.3f}")
 
-print(f"\n{'='*70}")
 print(f"PROPORTIONAL HAZARDS TEST (imputation 1)")
-print(f"{'='*70}")
 train_df_1 = pd.DataFrame(X_train_list[0], columns=SELECTED_FEATURES)
 train_df_1['OS_months'] = y_train['OS_months'].values
 train_df_1['event']     = y_train['event'].values
 cox_models[0].check_assumptions(train_df_1, p_value_threshold=0.05,
                                  show_plots=False)
 
-print(f"\n{'='*70}")
 print(f"GENERATING FOREST PLOT")
-print(f"{'='*70}")
 
 LABEL_MAP = {
     'age':              'Age (years)',
@@ -426,9 +411,7 @@ plt.tight_layout()
 plt.savefig('cox_mice_hr_forest.png', dpi=150, bbox_inches='tight')
 print("Saved: cox_mice_hr_forest.png")
 
-print(f"\n{'='*70}")
 print(f"SUMMARY - COX MICE PRIMARY ANALYSIS")
-print(f"{'='*70}")
 print(f"Imputations (M):         {M}")
 print(f"MICE estimator:          BayesianRidge (sample_posterior=True)")
 print(f"C-index (pooled):        {c_index:.3f} (95% CI: {ci_lo:.3f}-{ci_hi:.3f})")
@@ -447,4 +430,3 @@ print(f"  cox_mice_pooled_summary.csv     - pooled HRs + Rubin's rules stats")
 print(f"  y_train_cox.csv                 - training survival reference")
 print(f"  cox_mice_hr_forest.png          - forest plot")
 print(f"\nNext: run rsfnewwv_mice.py (RSF with MICE)")
-print("=" * 70)

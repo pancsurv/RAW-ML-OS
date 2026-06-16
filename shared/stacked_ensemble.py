@@ -350,9 +350,7 @@ def calibration_plot(meta_rsf, X_meta, OS, evt, t, fname, title):
 
 
 def run():
-    print("=" * 70)
     print("STACKED ENSEMBLE - random survival forest meta-learner")
-    print("=" * 70)
 
     df_int = load_internal(INTERNAL_CSV)
     df_ext = load_external(EXTERNAL_CSV)
@@ -415,9 +413,7 @@ def run():
         rf_imp_df = pd.DataFrame({'Base model': cols, 'Importance': rf.feature_importances_}
                                  ).sort_values('Importance', ascending=False)
 
-    print("\n" + "=" * 70)
     print("RESULTS")
-    print("=" * 70)
     for name, r in results.items():
         print(f"\n{name}:")
         print(f"  Ensemble C-index: {r['c']:.3f} (95% CI {r['lo']:.3f}-{r['hi']:.3f})")
@@ -442,7 +438,6 @@ def run():
     print("\nSaved: ensemble_meta_importance.csv, ensemble_performance_summary.csv")
 
     forest_plot(results, cols)
-    print("=" * 70)
 
 
 def forest_plot(results, cols, fname='ensemble_forest_plot.png'):

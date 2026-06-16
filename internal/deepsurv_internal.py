@@ -46,9 +46,7 @@ BEST_PARAMS = {
     "dropout": 0.4485, "weight_decay": 0.0002721, "batch_size": 32
 }
 
-print("=" * 70)
 print("DEEPSURV - MICE IMPUTATION (M=10) + AVERAGED PREDICTIONS")
-print("=" * 70)
 
 data = pd.read_csv(DATA_PATH, na_values=['#NUM!'])
 data['event'] = data['alive_dead'].map({1: 0, 2: 1, 3: 0})
@@ -120,9 +118,7 @@ y_test_sksurv = Surv.from_arrays(
     y_test['event'].astype(bool).values, y_test['OS_months'].values
 )
 
-print(f"\n{'='*70}")
 print(f"MICE IMPUTATION (M={M})")
-print(f"{'='*70}")
 
 imputers     = []
 scalers      = []
@@ -155,9 +151,7 @@ joblib.dump(imputers, 'imputers_ds_mice.joblib')
 joblib.dump(scalers,  'scalers_ds_mice.joblib')
 print("Saved: imputers_ds_mice.joblib, scalers_ds_mice.joblib")
 
-print(f"\n{'='*70}")
 print(f"TRAINING {M} DEEPSURV MODELS ({EPOCHS} epochs each)")
-print(f"{'='*70}")
 
 def build_model(n_features):
     net = MLPVanilla(
@@ -252,9 +246,7 @@ def pooled_surv_at_times(times):
             surv_all[m, :, j] = np.exp(-exp_risk * H0_at_t)
     return surv_all.mean(axis=0)
 
-print(f"\n{'='*70}")
 print(f"TEST SET PERFORMANCE (pooled predictions)")
-print(f"{'='*70}")
 
 c_index = concordance_index(
     y_test['OS_months'], -pooled_test_risks, y_test['event']
@@ -303,9 +295,7 @@ surv_ibs = pooled_surv_at_times(ibs_times)
 ibs = integrated_brier_score(y_train_sksurv, y_test_sksurv, surv_ibs, ibs_times)
 print(f"  IBS: {ibs:.3f}")
 
-print(f"\n{'='*70}")
 print("SHAP ANALYSIS - DeepSurv INTERNAL (imputation 1)")
-print(f"{'='*70}")
 
 try:
     import shap
@@ -349,14 +339,10 @@ try:
         'Mean_|SHAP|': mean_shap
     }).sort_values('Mean_|SHAP|', ascending=False)
 
-    print(f"\n{'='*50}")
     print("DeepSurv INTERNAL - Mean |SHAP| values (ranked)")
-    print(f"{'='*50}")
     print(f"{'Rank':<6}{'Feature':<22}{'Mean |SHAP|':>12}")
-    print("-"*40)
     for rank, (_, row) in enumerate(shap_df.iterrows(), 1):
         print(f"{rank:<6}{row['Feature']:<22}{row['Mean_|SHAP|']:>12.4f}")
-    print("="*50)
     shap_df.to_csv('ds_mice_shap.csv', index=False)
 
     fig_bar, ax_bar = plt.subplots(figsize=(8, 6))
@@ -386,9 +372,7 @@ try:
 except Exception as e:
     print(f"SHAP analysis failed: {e}")
 
-print(f"\n{'='*70}")
 print(f"SUMMARY - DEEPSURV MICE PRIMARY ANALYSIS")
-print(f"{'='*70}")
 print(f"Imputations (M):          {M}")
 print(f"C-index (pooled):         {c_index:.3f} (95% CI: {ci_lo:.3f}-{ci_hi:.3f})")
 if len(valid_times):
@@ -399,6 +383,5 @@ print(f"  ds_weights_mice_m1-{M}.pt       - {M} DeepSurv weight files")
 print(f"  imputers_ds_mice.joblib         - {M} fitted MICE imputers")
 print(f"  scalers_ds_mice.joblib          - {M} fitted scalers")
 print(f"  ds_baseline_hazards_mice.joblib - {M} baseline hazard DataFrames")
-print(f"  model_weights_blh.pickle        - imputation 1 weights (compat.)")
+print(f"  model_weights_blh.pickle        - imputation 1 weights")
 print(f"\nNext: run sensitivity_analysis.py (complete case + median imputation)")
-print("=" * 70)

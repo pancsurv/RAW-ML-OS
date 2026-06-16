@@ -40,9 +40,7 @@ RSF_PARAMS = dict(
     n_jobs=-1, random_state=42
 )
 
-print("=" * 70)
 print("RSF MODEL - MICE IMPUTATION (M=10) + AVERAGED PREDICTIONS")
-print("=" * 70)
 
 data = pd.read_csv(DATA_PATH, na_values=['#NUM!'])
 data['event'] = data['alive_dead'].map({1: 0, 2: 1, 3: 0})
@@ -122,9 +120,7 @@ pd.DataFrame({
 }).to_csv('y_train.csv', index=False)
 print("Saved: y_train.csv")
 
-print(f"\n{'='*70}")
 print(f"MICE IMPUTATION (M={M})")
-print(f"{'='*70}")
 
 imputers      = []
 scalers       = []
@@ -157,9 +153,7 @@ joblib.dump(imputers, 'imputers_rsf_mice.joblib')
 joblib.dump(scalers,  'scalers_rsf_mice.joblib')
 print("Saved: imputers_rsf_mice.joblib, scalers_rsf_mice.joblib")
 
-print(f"\n{'='*70}")
 print(f"TRAINING {M} RSF MODELS")
-print(f"{'='*70}")
 
 rsf_models         = []
 train_risks_all    = np.zeros((M, len(X_train_raw)))
@@ -190,14 +184,12 @@ joblib.dump(rsf_models[0], 'rsf_model.joblib')
 joblib.dump(imputers[0],   'imputer_rsf.joblib')
 joblib.dump(scalers[0],    'scaler_rsf.joblib')
 print("Saved: rsf_model.joblib, imputer_rsf.joblib, scaler_rsf.joblib "
-      "(imputation 1, for downstream compatibility)")
+      "(imputation 1)")
 
 pooled_test_risks  = test_risks_all.mean(axis=0)
 pooled_train_risks = train_risks_all.mean(axis=0)
 
-print(f"\n{'='*70}")
 print(f"TEST SET PERFORMANCE (pooled predictions)")
-print(f"{'='*70}")
 
 c_index = concordance_index(
     y_test['OS_months'], -pooled_test_risks, y_test['event']
@@ -256,9 +248,7 @@ surv_ibs = pooled_surv_matrix(X_test_list, rsf_models, ibs_times)
 ibs = integrated_brier_score(y_train_sksurv, y_test_sksurv, surv_ibs, ibs_times)
 print(f"  IBS: {ibs:.3f}")
 
-print(f"\n{'='*70}")
 print(f"SHAP ANALYSIS (imputation 1)")
-print(f"{'='*70}")
 
 print("Preparing SHAP explainer (100 background samples)...")
 print("Note: RSF uses shap.Explainer with predict wrapper (TreeExplainer not supported)")
@@ -285,14 +275,10 @@ shap_df = pd.DataFrame({
     'Mean_|SHAP|': mean_shap
 }).sort_values('Mean_|SHAP|', ascending=False)
 
-print("\n" + "="*50)
 print("RSF INTERNAL - Mean |SHAP| values (ranked)")
-print("="*50)
 print(f"{'Rank':<6}{'Feature':<22}{'Mean |SHAP|':>12}")
-print("-"*40)
 for rank, (_, row) in enumerate(shap_df.iterrows(), 1):
     print(f"{rank:<6}{row['Feature']:<22}{row['Mean_|SHAP|']:>12.4f}")
-print("="*50)
 shap_df.to_csv('rsf_mice_shap.csv', index=False)
 
 fig_bar, ax_bar = plt.subplots(figsize=(8, 6))
@@ -320,9 +306,7 @@ try:
 except Exception as e:
     print(f"Beeswarm plot skipped: {e}")
 
-print(f"\n{'='*70}")
 print(f"SUMMARY - RSF MICE PRIMARY ANALYSIS")
-print(f"{'='*70}")
 print(f"Imputations (M):         {M}")
 print(f"C-index (pooled):        {c_index:.3f} (95% CI: {ci_lo:.3f}-{ci_hi:.3f})")
 if len(valid_times):
@@ -332,8 +316,7 @@ print(f"\nFiles saved:")
 print(f"  rsf_models_mice.joblib       - {M} fitted RSF models")
 print(f"  imputers_rsf_mice.joblib     - {M} fitted MICE imputers")
 print(f"  scalers_rsf_mice.joblib      - {M} fitted scalers")
-print(f"  rsf_model.joblib             - imputation 1 model (downstream compat.)")
+print(f"  rsf_model.joblib             - imputation 1 model")
 print(f"  y_train.csv                  - training survival reference")
 print(f"  rsf_mice_shap.csv/png        - SHAP importance")
 print(f"\nNext: run alldata_mice.py (DeepSurv with MICE)")
-print("=" * 70)

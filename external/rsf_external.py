@@ -357,14 +357,10 @@ def evaluate_external_rsf(models_path, scalers_path, imputers_path,
             'Mean_|SHAP|': mean_shap
         }).sort_values('Mean_|SHAP|', ascending=False)
 
-        print("\n" + "="*50)
         print("RSF EXTERNAL - Mean |SHAP| values (ranked)")
-        print("="*50)
         print(f"{'Rank':<6}{'Feature':<22}{'Mean |SHAP|':>12}")
-        print("-"*40)
         for rank, (_, row) in enumerate(shap_df.iterrows(), 1):
             print(f"{rank:<6}{row['Feature']:<22}{row['Mean_|SHAP|']:>12.4f}")
-        print("="*50)
         shap_df.to_csv('rsf_external_shap.csv', index=False)
 
         fig_bar, ax_bar = plt.subplots(figsize=(8, 6))
@@ -411,4 +407,3 @@ if __name__ == "__main__":
     )
     print("\n--- External RSF Validation Results ---")
     print(json.dumps(res, indent=2))
-    print("---------------------------------------")

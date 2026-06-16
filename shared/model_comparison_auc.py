@@ -492,9 +492,7 @@ def plot_combined_auc(auc_data, delong_df, test_times_for_annotation):
     plt.show()
 
 def main():
-    print("="*70)
     print("COMBINED AUC COMPARISON: DeepSurv vs RSF vs Cox vs TNM")
-    print("="*70)
 
     data = load_and_prepare_data()
 
@@ -601,9 +599,7 @@ def main():
     print("\nGenerating combined AUC figure...")
     plot_combined_auc(auc_data, delong_df, delong_times)
 
-    print("\n" + "="*70)
     print("POINT-ESTIMATE AUC SUMMARY")
-    print("="*70)
     summary_rows = []
     for model, d in auc_data.items():
         for t, a, lo_, hi_ in zip(d['times'], d['auc'], d['lo'], d['hi']):

@@ -529,14 +529,11 @@ def plot_combined_auc_5models(auc_data, delong_df, delong_times):
     plt.show()
 
 def print_summary_table(risks_dict, OS, events, y_train_ref, valid_times):
-    print("\n" + "="*80)
     print("PERFORMANCE SUMMARY - ALL MODELS")
-    print("="*80)
     print(f"{'Model':<14} {'C-index':>8} {'95% CI Lo':>10} {'95% CI Hi':>10}", end="")
     for t in valid_times:
         print(f"  AUC@{int(t)}m", end="")
     print()
-    print("-"*80)
 
     y_test = Surv.from_arrays(events.astype(bool), OS)
     vt     = valid_times[valid_times < OS.max()]
@@ -556,12 +553,9 @@ def print_summary_table(risks_dict, OS, events, y_train_ref, valid_times):
             except Exception:
                 print("  [AUC error]", end="")
         print()
-    print("="*80)
 
 def main():
-    print("="*80)
     print("BENCHMARK COMPARISON: ML Models vs Amsterdam Score vs TNM 8th Edition")
-    print("="*80)
 
     data = load_data()
 
@@ -746,9 +740,7 @@ def main():
             except Exception as e:
                 print(f"  {model}: Brier/IBS failed - {e}")
 
-    print("\n" + "="*80)
     print("DONE")
-    print("="*80)
 
 if __name__ == "__main__":
     main()

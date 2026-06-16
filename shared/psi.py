@@ -88,9 +88,7 @@ def engineer_features(df):
     return d
 
 def load_internal_data(path):
-    print("\n" + "="*80)
     print("LOADING INTERNAL DATASET")
-    print("="*80)
     df = pd.read_csv(path, na_values=['#NUM!', 'NA', 'NaN', '#DIV/0!'], encoding='latin1')
     df.columns = df.columns.str.strip()
     df['event'] = df['alive_dead'].map({1: 0, 2: 1, 3: 0})
@@ -134,9 +132,7 @@ def load_internal_data(path):
     return df
 
 def load_external_data(path):
-    print("\n" + "="*80)
     print("LOADING EXTERNAL DATASET")
-    print("="*80)
     df = pd.read_csv(path, encoding='latin1',
                      na_values=['#DIV/0!', 'NA', 'N/A', 'NaN', '#NUM!'])
     df.columns = df.columns.str.strip()
@@ -239,14 +235,11 @@ def apply_psi2_tertiles(scores, low_thresh, high_thresh):
            np.where(scores <= high_thresh, 'Intermediate', 'High'))
 
 def print_psi2_derivation_report(lnr_cutoff, low_thresh, high_thresh):
-    print("\n" + "="*80)
     print("PSI-2 DERIVATION REPORT")
-    print("="*80)
     print("\nVariable selection: features significant (p<0.05) in MICE-pooled Cox")
     print("model (M=10, Rubin's Rules). Adjuvant chemotherapy included at p=0.052")
     print("as clinically essential protective factor.\n")
     print(f"{'Variable':<20} {'HR':>8} {'log(HR)':>10} {'|log(HR)|/min':>15} {'Weight':>8}")
-    print("-"*65)
 
     min_log_hr = min(abs(np.log(hr)) for hr in PSI2_COX_HRS.values())
     for var, hr in PSI2_COX_HRS.items():
@@ -266,7 +259,6 @@ def print_psi2_derivation_report(lnr_cutoff, low_thresh, high_thresh):
     print(f"        + 1*(histoT >= 3)")
     print(f"        - 1*(adjuvant chemotherapy received)")
     print(f"  Score range: -1 (lowest risk) to +6 (highest risk)")
-    print("="*80)
 
 def load_pretrained_deepsurv():
     if not PYCOX_AVAILABLE:
@@ -555,9 +547,7 @@ def plot_psi2_roc_derivation(lnr_vals, binary_outcome, lnr_cutoff):
     plt.show()
 
 def run_complete_analysis():
-    print("="*80)
     print("PSI-2 - PANCREATIC SURVIVAL INDEX (Redesigned, Data-Driven)")
-    print("="*80)
 
     df_internal = load_internal_data(INTERNAL_CSV)
     df_external = load_external_data(EXTERNAL_CSV)
@@ -578,9 +568,7 @@ def run_complete_analysis():
     time_ext    = df_external['OS_months'].values
     event_ext   = df_external['event'].values
 
-    print("\n" + "="*80)
     print("PSI-2 THRESHOLD DERIVATION (training split only)")
-    print("="*80)
 
     lnr_cutoff = derive_psi2_lnr_cutoff(df_train, time_train, event_train,
                                           target_months=24)
@@ -643,9 +631,7 @@ def run_complete_analysis():
                 torch.FloatTensor(X_ds_train_sc).to(device)
             ).squeeze().cpu().numpy()
 
-    print("\n" + "="*80)
     print("INTERNAL TEST SET EVALUATION")
-    print("="*80)
 
     psi2_c_test = concordance_index(time_test, -psi2_test, event_test)
     ci_lo, ci_hi = bootstrap_c_index(-psi2_test, time_test, event_test)
@@ -701,9 +687,7 @@ def run_complete_analysis():
                                            y_train_ref, label='DeepSurv (Internal)',
                                            train_risk_scores=ds_train_scores)
 
-    print("\n" + "="*80)
     print(f"ECONOMIC ANALYSIS - FULL INTERNAL COHORT (n={len(df_internal)})")
-    print("="*80)
     print("PSI-2 thresholds remain fixed from training split - no data leakage.")
 
     full_cost_tertile = calculate_cost_savings(psi2_full_tertiles)
@@ -715,9 +699,7 @@ def run_complete_analysis():
           f"(95% CI: £{full_cost_tertile['ci_low']:,.0f}-"
           f"£{full_cost_tertile['ci_high']:,.0f})")
 
-    print("\n" + "="*80)
     print("EXTERNAL COHORT EVALUATION")
-    print("="*80)
 
     psi2_c_ext = concordance_index(time_ext, -psi2_ext, event_ext)
     ci_lo_e, ci_hi_e = bootstrap_c_index(-psi2_ext, time_ext, event_ext)
@@ -817,11 +799,8 @@ def run_complete_analysis():
     print("Saved: Fig_PSI2_ML_Comparison.png")
     plt.show()
 
-    print("\n" + "="*80)
     print("CROSS-COHORT LOG-RANK TESTS - Internal Test Set vs External Cohort")
-    print("="*80)
     print("Tests whether survival differs between cohorts within each risk group.")
-    print("-"*80)
 
     for grp in ['Low', 'Intermediate', 'High']:
         int_mask = psi2_test_tertiles == grp
@@ -849,11 +828,8 @@ def run_complete_analysis():
     print("\n  A non-significant p-value indicates similar survival within risk group,")
     print("  supporting external generalisability of the PSI-2 stratification.")
 
-    print("\n" + "="*80)
     print("FINAL SUMMARY (C-index, 95% CI)")
-    print("="*80)
     print(f"{'Model':<12} {'Internal':<28} {'External'}")
-    print("-"*65)
     print(f"{'PSI-2':<12} {psi2_c_test:.2f} [{ci_lo:.2f}-{ci_hi:.2f}]"
           f"          {psi2_c_ext:.2f} [{ci_lo_e:.2f}-{ci_hi_e:.2f}]")
     print(f"{'RSF':<12} {rsf_c_test:.2f} [{ci_lo_r:.2f}-{ci_hi_r:.2f}]"
@@ -862,9 +838,7 @@ def run_complete_analysis():
         print(f"{'DeepSurv':<12} {ds_c_test:.2f} [{ci_lo_d:.2f}-{ci_hi_d:.2f}]"
               f"          {ds_c_ext:.2f} [{ci_lo_de:.2f}-{ci_hi_de:.2f}]")
 
-    print("\n" + "="*80)
     print("TIME-DEPENDENT AUC SUMMARY")
-    print("="*80)
     all_times = sorted(set(
         psi2_test_metrics['auc_times'] + rsf_test_metrics['auc_times']
     ))
@@ -895,21 +869,15 @@ def run_complete_analysis():
     if ds_net:
         print(fmt_row('DeepSurv', 'External', ds_ext_metrics))
 
-    print("\n" + "="*80)
     print("INTEGRATED BRIER SCORE (IBS) SUMMARY")
-    print("="*80)
     print(f"{'Model':<12} {'Internal IBS':<18} {'External IBS'}")
-    print("-"*45)
     print(f"{'PSI-2':<12} {psi2_test_metrics['ibs']:<18.3f} {psi2_ext_metrics['ibs']:.3f}")
     print(f"{'RSF':<12} {rsf_test_metrics['ibs']:<18.3f} {rsf_ext_metrics['ibs']:.3f}")
     if ds_net:
         print(f"{'DeepSurv':<12} {ds_test_metrics['ibs']:<18.3f} {ds_ext_metrics['ibs']:.3f}")
 
-    print("\n" + "="*80)
     print("ECONOMIC SUMMARY - TERTILE STRATIFICATION")
-    print("="*80)
     print(f"{'Approach':<30} {'Dataset':<25} {'Observed £':>14} {'Mean MC £':>14} {'95% CI'}")
-    print("-"*105)
     for lbl, dataset, cost in [
         ("Tertile (Low/Int/High)",   f"Internal test (n={len(df_test)})",      internal_cost_tertile),
         ("Tertile (Low/Int/High)",   f"Full internal (n={len(df_internal)})",   full_cost_tertile),
@@ -925,9 +893,7 @@ def run_complete_analysis():
     print("  AUC uses IPCW with training data as censoring reference.")
     print("  IBS computed via KM-based survival matrix (decile binning).")
     print("  All variables drawn from the 16-feature ML model set.")
-    print("="*80)
     print("ANALYSIS COMPLETE")
-    print("="*80)
 
 if __name__ == "__main__":
     run_complete_analysis()

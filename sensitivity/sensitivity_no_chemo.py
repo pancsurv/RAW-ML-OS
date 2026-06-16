@@ -52,9 +52,7 @@ DS_PARAMS = {
     "batch_size": 32, "epochs": 50
 }
 
-print("=" * 70)
 print("SENSITIVITY ANALYSIS - NO CHEMOTHERAPY (14 features)")
-print("=" * 70)
 
 data = pd.read_csv(DATA_PATH, na_values=['#NUM!'])
 data['event'] = data['alive_dead'].map({1: 0, 2: 1, 3: 0})
@@ -158,9 +156,7 @@ def compute_metrics(risks, label, y_tr_s, y_te_s, y_te_df, n_boot=500):
     return {'label': label, 'c_index': c, 'ci_lo': ci_lo, 'ci_hi': ci_hi,
             **{f'auc_{t}m': v for t, v in aucs.items()}}
 
-print(f"\n{'='*70}")
 print("STRATEGY 1: COMPLETE CASE (no imputation)")
-print("=" * 70)
 
 train_cc_mask = ~X_train_raw.isna().any(axis=1)
 test_cc_mask  = ~X_test_raw.isna().any(axis=1)
@@ -220,9 +216,7 @@ with torch.no_grad():
 cc_results.append(compute_metrics(ds_cc_risks, 'DeepSurv - Complete Case',
                                   y_tr_cc_s, y_te_cc_s, y_te_cc))
 
-print(f"\n{'='*70}")
 print("STRATEGY 2: MEDIAN IMPUTATION")
-print("=" * 70)
 
 imp_med = SimpleImputer(strategy='median')
 X_tr_med = imp_med.fit_transform(X_train_raw)
@@ -269,9 +263,7 @@ with torch.no_grad():
 med_results.append(compute_metrics(ds_med_risks, 'DeepSurv - Median Imputation',
                                    y_train_sksurv, y_test_sksurv, y_test))
 
-print(f"\n{'='*70}")
 print(f"STRATEGY 3: MICE (M={MICE_M}) - in-script, 14-feature set")
-print("=" * 70)
 
 mice_results = []
 cox_mice_risks_all = np.zeros((MICE_M, len(X_test_raw)))
@@ -336,9 +328,7 @@ mice_results.append(compute_metrics(
     y_train_sksurv, y_test_sksurv, y_test
 ))
 
-print(f"\n{'='*70}")
 print("SENSITIVITY ANALYSIS SUMMARY - NO CHEMOTHERAPY (14 features)")
-print("=" * 70)
 
 all_results = mice_results + med_results + cc_results
 df_res = pd.DataFrame(all_results)
@@ -346,7 +336,6 @@ df_res['strategy'] = df_res['label'].str.extract(r'- (.+)$')
 df_res['model']    = df_res['label'].str.extract(r'^(\w+)')
 
 print(f"\n{'Label':<40} {'C-index':>8} {'95% CI':>18} {'AUC@12m':>9} {'AUC@36m':>9}")
-print("-" * 90)
 for _, row in df_res.iterrows():
     auc12 = f"{row.get('auc_12m', float('nan')):.3f}"            if not pd.isna(row.get('auc_12m', float('nan'))) else "  n/a "
     auc36 = f"{row.get('auc_36m', float('nan')):.3f}"            if not pd.isna(row.get('auc_36m', float('nan'))) else "  n/a "
@@ -400,6 +389,4 @@ plt.tight_layout()
 plt.savefig('sensitivity_analysis_no_chemo_imputation.png', dpi=150, bbox_inches='tight')
 print("Saved: sensitivity_analysis_no_chemo_imputation.png")
 
-print(f"\n{'='*70}")
 print("SENSITIVITY ANALYSIS (NO CHEMOTHERAPY) COMPLETE")
-print("=" * 70)
