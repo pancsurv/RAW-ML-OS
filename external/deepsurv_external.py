@@ -54,53 +54,40 @@ FEATURES = [
 ]
 
 class SurvivalPredictor:
-    def __init__(self, weights: str, scaler: str, imputer: str,
+    def __init__(self, weights_list: List[str], scalers: str, imputers: str,
                  baseline_hazards: str, y_train_csv: str,
                  device: Optional[str] = None):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         logging.info(f"Using device: {self.device}")
 
-        self.scaler:  StandardScaler = joblib.load(scaler)
-        self.imputer: SimpleImputer  = joblib.load(imputer)
-        self.features: List[str]     = FEATURES
-
-        imputer_cols = getattr(self.imputer, "feature_names_in_", self.features)
-        if set(imputer_cols) != set(self.features):
+        self.features: List[str] = FEATURES
+        self.scalers  = joblib.load(scalers)
+        self.imputers = joblib.load(imputers)
+        self.bhs      = joblib.load(baseline_hazards)
+        self.M        = len(weights_list)
+        if not (len(self.scalers) == len(self.imputers) == len(self.bhs) == self.M):
             raise RuntimeError(
-                f"Feature mismatch. Imputer: {list(imputer_cols)}, "
-                f"Expected: {self.features}"
+                f"Artifact count mismatch: {self.M} weight files, "
+                f"{len(self.scalers)} scalers, {len(self.imputers)} imputers, "
+                f"{len(self.bhs)} baseline-hazard sets."
             )
 
-        net = tt.practical.MLPVanilla(
-            in_features=len(self.features),
-            num_nodes=CFG["nodes"],
-            out_features=1,
-            batch_norm=True,
-            dropout=CFG["dropout"],
-        )
-        self.model = CoxPH(net, tt.optim.Adam)
+        self.nets = []
+        for wpath in weights_list:
+            net = tt.practical.MLPVanilla(
+                in_features=len(self.features),
+                num_nodes=CFG["nodes"],
+                out_features=1,
+                batch_norm=True,
+                dropout=CFG["dropout"],
+            )
+            net.load_state_dict(torch.load(wpath, map_location=self.device))
+            net.to(self.device).eval()
+            self.nets.append(net)
+        logging.info(f"Loaded {self.M} pooled DeepSurv imputation models.")
+
+        self.model = CoxPH(self.nets[0], tt.optim.Adam)
         self.model.loss = CoxPHLoss()
-        state = torch.load(weights, map_location=self.device)
-        self.model.net.load_state_dict(state)
-        self.model.net.to(self.device).eval()
-
-        logging.info(f"Loading baseline hazards from: {baseline_hazards}")
-
-        try:
-            bh_df = pd.read_csv(baseline_hazards, index_col=0, header=0)
-            bh_series = bh_df.iloc[:, 0]
-            bh_series.index = bh_series.index.astype(float)
-        except (ValueError, KeyError):
-            bh_df = pd.read_csv(baseline_hazards, index_col=0, header=None)
-            bh_series = bh_df.iloc[:, 0]
-            bh_series.index = bh_series.index.astype(float)
-        bh_series.name = "baseline_hazards_"
-        self.model.baseline_hazards_ = bh_series
-        logging.info(
-            f"Baseline hazards loaded: {len(bh_series)} time points, "
-            f"range [{bh_series.index.min():.1f}, {bh_series.index.max():.1f}] months."
-        )
-        logging.info("Model loaded successfully.")
 
         if os.path.exists(y_train_csv):
             y_tr = pd.read_csv(y_train_csv)
@@ -182,27 +169,41 @@ class SurvivalPredictor:
         df.loc[over_fup, "OS_months"] = CFG["max_followup"]
         df.loc[over_fup, "event"]     = 0
 
-        X_raw      = df[self.features]
-        X_imputed  = pd.DataFrame(self.imputer.transform(X_raw), columns=self.features)
-        X_scaled   = self.scaler.transform(X_imputed)
+        X_raw_df = df[self.features].reset_index(drop=True)
 
         OS  = df["OS_months"].values.astype("float32")
         evt = df["event"].values.astype("int")
 
         logging.info(f"Prepared {len(OS)} samples, {evt.sum()} events ({evt.mean()*100:.1f}%).")
-        return X_scaled, OS, evt, X_imputed
+        return X_raw_df, OS, evt
 
     def evaluate(self, df: pd.DataFrame) -> Dict:
-        X_scaled, OS, evt, X_imputed_df = self._prepare(df)
+        X_raw_df, OS, evt = self._prepare(df)
 
         fup    = CFG["max_followup"]
         OS_cap = np.minimum(OS, fup)
         evt_cap = np.where(OS > fup, 0, evt)
 
-        x_t = torch.tensor(X_scaled, dtype=torch.float32).to(self.device)
+        n_pat = len(X_raw_df)
+        risks_all = np.zeros((self.M, n_pat))
+        surv_stack = []
+        bh_times = None
+        for m in range(self.M):
+            X_sc_m = self.scalers[m].transform(self.imputers[m].transform(X_raw_df))
+            x_t = torch.tensor(np.asarray(X_sc_m, dtype=np.float32)).to(self.device)
+            with torch.no_grad():
+                r_m = self.nets[m](x_t).cpu().numpy().ravel()
+            risks_all[m] = r_m
+            bh_m = self.bhs[m]
+            if bh_times is None:
+                bh_times = bh_m.index.values.astype(float)
+            H0_m = np.cumsum(bh_m.values.astype(float))
+            surv_stack.append(np.exp(-np.outer(np.exp(r_m.astype(float)), H0_m)))
 
-        with torch.no_grad():
-            risks = self.model.predict(x_t).cpu().numpy().ravel()
+        risks = risks_all.mean(axis=0)
+        surv_matrix = np.mean(surv_stack, axis=0)
+        X_imputed_df = pd.DataFrame(self.imputers[0].transform(X_raw_df),
+                                    columns=self.features)
 
         c_est = concordance_index(OS_cap, -risks, evt_cap)
         rng = np.random.default_rng(42)
@@ -246,15 +247,6 @@ class SurvivalPredictor:
             logging.warning("No valid Brier time points within follow-up range - skipping.")
         else:
             try:
-
-                bh       = self.model.baseline_hazards_
-                bh_times = bh.index.values.astype(float)
-                H0       = np.cumsum(bh.values.astype(float))
-                n_pat    = len(risks)
-
-                exp_risk = np.exp(risks.astype(float))
-
-                surv_matrix = np.exp(-np.outer(exp_risk, H0))
 
                 def interp_surv(eval_times):
                     return np.column_stack([
@@ -462,18 +454,22 @@ class SurvivalPredictor:
         }
 
 if __name__ == "__main__":
-    WEIGHTS_PATH   = "model_weights_blh.pickle"
-
-    SCALER_PATH    = "scaler_ds.joblib"
-    IMPUTER_PATH   = "imputer_ds.joblib"
-    BASELINE_PATH  = "baseline_hazards.csv"
-
-    Y_TRAIN_CSV    = "y_train_deepsurv.csv"
+    import glob, re
+    ARTIFACT_DIR   = os.environ.get("RAW_ARTIFACT_DIR", ".")
+    weights_list   = sorted(
+        glob.glob(os.path.join(ARTIFACT_DIR, "ds_weights_mice_m*.pt")),
+        key=lambda p: int(re.search(r"_m(\d+)\.pt$", p).group(1))
+    )
+    SCALERS_PATH   = os.path.join(ARTIFACT_DIR, "scalers_ds_mice.joblib")
+    IMPUTERS_PATH  = os.path.join(ARTIFACT_DIR, "imputers_ds_mice.joblib")
+    BASELINE_PATH  = os.path.join(ARTIFACT_DIR, "ds_baseline_hazards_mice.joblib")
+    Y_TRAIN_CSV    = os.path.join(ARTIFACT_DIR, "y_train_deepsurv.csv")
     EXTERNAL_CSV   = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "cambook_cleaned.csv")
 
-    required_files = [WEIGHTS_PATH, SCALER_PATH, IMPUTER_PATH, BASELINE_PATH, EXTERNAL_CSV]
-
+    required_files = weights_list + [SCALERS_PATH, IMPUTERS_PATH, BASELINE_PATH, EXTERNAL_CSV]
     missing = [p for p in required_files if not os.path.exists(p)]
+    if not weights_list:
+        missing.append("ds_weights_mice_m*.pt")
     if missing:
         raise FileNotFoundError(f"Required files not found: {missing}")
 
@@ -483,9 +479,9 @@ if __name__ == "__main__":
             na_values=["#DIV/0!", "NA", "N/A", "NaN", "#NUM!"]
         )
         predictor = SurvivalPredictor(
-            weights=WEIGHTS_PATH,
-            scaler=SCALER_PATH,
-            imputer=IMPUTER_PATH,
+            weights_list=weights_list,
+            scalers=SCALERS_PATH,
+            imputers=IMPUTERS_PATH,
             baseline_hazards=BASELINE_PATH,
             y_train_csv=Y_TRAIN_CSV,
         )
