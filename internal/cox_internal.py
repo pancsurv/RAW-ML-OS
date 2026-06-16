@@ -308,7 +308,7 @@ y_test_sksurv = Surv.from_arrays(
     y_test['event'].astype(bool).values,
     y_test['OS_months'].values
 )
-valid_times = np.array([t for t in [12, 36, 48] if t < y_test['OS_months'].max()])
+valid_times = np.array([t for t in [12, 36, 58] if t < y_test['OS_months'].max()])
 if len(valid_times):
     auc_vals, mean_auc = cumulative_dynamic_auc(
         y_train_sksurv, y_test_sksurv, pooled_test_risks, valid_times
@@ -319,7 +319,7 @@ if len(valid_times):
     print(f"  Mean AUC: {mean_auc:.3f}")
 
 print(f"\nBrier Scores (pooled survival functions):")
-brier_times = np.array([t for t in [12, 36, 48] if t < y_test['OS_months'].max()])
+brier_times = np.array([t for t in [12, 36, 58] if t < y_test['OS_months'].max()])
 surv_probs = pooled_survival_at_times(brier_times)
 _, brier_vals = brier_score(
     y_train_sksurv, y_test_sksurv, surv_probs, brier_times
