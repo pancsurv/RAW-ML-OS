@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import joblib
@@ -30,13 +31,13 @@ except ImportError:
     PYCOX_AVAILABLE = False
     print("WARNING: pycox not available - DeepSurv comparison disabled.")
 
-INTERNAL_CSV  = r"D:\Users\Downloads\Cleaned_Dataset_for_Analysis.csv"
-EXTERNAL_CSV  = r"D:\Users\Downloads\cambook_cleaned.csv"
-WEIGHTS_PATH  = r"C:\Users\athan\model_weights_blh.pickle"
+INTERNAL_CSV  = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "Cleaned_Dataset_for_Analysis.csv")
+EXTERNAL_CSV  = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "cambook_cleaned.csv")
+WEIGHTS_PATH  = "model_weights_blh.pickle"
 
-SCALER_PATH   = r"C:\Users\athan\scaler_ds.joblib"
-IMPUTER_PATH  = r"C:\Users\athan\imputer_ds.joblib"
-BASELINE_PATH = r"C:\Users\athan\baseline_hazards.csv"
+SCALER_PATH   = "scaler_ds.joblib"
+IMPUTER_PATH  = "imputer_ds.joblib"
+BASELINE_PATH = "baseline_hazards.csv"
 
 PSI2_COX_HRS = {
     'LNR':            1.343,

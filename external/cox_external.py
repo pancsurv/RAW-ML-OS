@@ -60,11 +60,11 @@ def bootstrapped_c_index(durations, events, scores, n_iter=1000, seed=42):
 
 def main():
     try:
-        COX_MODEL_PATH = r"C:\Users\athan\cox_model.pkl"
+        COX_MODEL_PATH = "cox_model.pkl"
         SCALER_PATH    = "scaler_cox.save"
         IMPUTER_PATH   = "imputer_cox.joblib"
         Y_TRAIN_CSV    = "y_train_cox.csv"
-        EXTERNAL_CSV   = r"D:\Users\Downloads\cambook_cleaned.csv"
+        EXTERNAL_CSV   = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "cambook_cleaned.csv")
 
         for p in [COX_MODEL_PATH, SCALER_PATH, IMPUTER_PATH, EXTERNAL_CSV]:
             if not os.path.exists(p):

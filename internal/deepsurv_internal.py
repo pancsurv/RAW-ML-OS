@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-DATA_PATH = r"D:\Users\Downloads\Cleaned_Dataset_for_Analysis.csv"
+DATA_PATH = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "Cleaned_Dataset_for_Analysis.csv")
 M         = 10
 MAX_ITER  = 10
 BASE_SEED = 42

@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import joblib
@@ -20,7 +21,7 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
 from scipy import stats
 
-DATA_PATH  = r"D:\Users\Downloads\Cleaned_Dataset_for_Analysis.csv"
+DATA_PATH  = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "Cleaned_Dataset_for_Analysis.csv")
 M          = 10
 MAX_ITER   = 10
 BASE_SEED  = 42

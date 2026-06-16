@@ -26,7 +26,7 @@ SCALER_PATH       = 'scaler_rsf.joblib'
 IMPUTER_PATH      = 'imputer_rsf.joblib'
 
 Y_TRAIN_CSV_PATH  = 'y_train.csv'
-EXTERNAL_CSV_PATH = r'D:\Users\Downloads\cambook_cleaned.csv'
+EXTERNAL_CSV_PATH = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "cambook_cleaned.csv")
 
 def engineer_features(df):
     d = df.copy()

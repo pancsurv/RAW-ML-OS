@@ -20,8 +20,8 @@ from sksurv.metrics import cumulative_dynamic_auc, brier_score, integrated_brier
 
 warnings.filterwarnings('ignore')
 
-INTERNAL_CSV = r"D:\Users\Downloads\Cleaned_Dataset_for_Analysis.csv"
-EXTERNAL_CSV = r"D:\Users\Downloads\cambook_cleaned.csv"
+INTERNAL_CSV = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "Cleaned_Dataset_for_Analysis.csv")
+EXTERNAL_CSV = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "cambook_cleaned.csv")
 
 RANDOM_STATE = 42
 N_FOLDS      = 5

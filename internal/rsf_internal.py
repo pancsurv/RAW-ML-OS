@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import joblib
@@ -18,7 +19,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import shap
 
-DATA_PATH = r"D:\Users\Downloads\Cleaned_Dataset_for_Analysis.csv"
+DATA_PATH = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "Cleaned_Dataset_for_Analysis.csv")
 M         = 10
 MAX_ITER  = 10
 BASE_SEED = 42

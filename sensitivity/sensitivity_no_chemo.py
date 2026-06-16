@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import torch
@@ -25,7 +26,7 @@ import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-DATA_PATH = r"D:\Users\Downloads\Cleaned_Dataset_for_Analysis.csv"
+DATA_PATH = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "Cleaned_Dataset_for_Analysis.csv")
 
 SELECTED_FEATURES = [
     'age', 'bmi', 'asa',

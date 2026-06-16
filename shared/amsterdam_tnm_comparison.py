@@ -22,7 +22,7 @@ from pycox.models.loss import CoxPHLoss
 
 warnings.filterwarnings('ignore')
 
-DATA_PATH        = r"D:\Users\Downloads\Cleaned_Dataset_for_Analysis.csv"
+DATA_PATH        = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "Cleaned_Dataset_for_Analysis.csv")
 COX_MODEL_PATH   = "cox_model.pkl"
 COX_SCALER_PATH  = "scaler_cox.save"
 COX_IMPUTER_PATH = "imputer_cox.joblib"

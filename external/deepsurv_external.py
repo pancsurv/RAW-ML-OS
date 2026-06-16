@@ -462,14 +462,14 @@ class SurvivalPredictor:
         }
 
 if __name__ == "__main__":
-    WEIGHTS_PATH   = r"C:\Users\athan\model_weights_blh.pickle"
+    WEIGHTS_PATH   = "model_weights_blh.pickle"
 
-    SCALER_PATH    = r"C:\Users\athan\scaler_ds.joblib"
-    IMPUTER_PATH   = r"C:\Users\athan\imputer_ds.joblib"
-    BASELINE_PATH  = r"C:\Users\athan\baseline_hazards.csv"
+    SCALER_PATH    = "scaler_ds.joblib"
+    IMPUTER_PATH   = "imputer_ds.joblib"
+    BASELINE_PATH  = "baseline_hazards.csv"
 
-    Y_TRAIN_CSV    = r"C:\Users\athan\y_train_deepsurv.csv"
-    EXTERNAL_CSV   = r"D:\Users\Downloads\cambook_cleaned.csv"
+    Y_TRAIN_CSV    = "y_train_deepsurv.csv"
+    EXTERNAL_CSV   = os.path.join(os.environ.get("RAW_DATA_DIR", "."), "cambook_cleaned.csv")
 
     required_files = [WEIGHTS_PATH, SCALER_PATH, IMPUTER_PATH, BASELINE_PATH, EXTERNAL_CSV]
 
