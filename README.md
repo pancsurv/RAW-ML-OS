@@ -42,13 +42,29 @@ pip install -r requirements.txt
 
 Key libraries: scikit-learn, scikit-survival, lifelines, statsmodels, PyTorch, torchtuples, pycox, SHAP.
 
+## Configuration and run order
+
+Input data are located via the `RAW_DATA_DIR` environment variable (default: the current directory). The scripts expect two CSVs in that directory: `Cleaned_Dataset_for_Analysis.csv` (development cohort) and `cambook_cleaned.csv` (external cohort).
+
+```
+set RAW_DATA_DIR=C:\path\to\data        # Windows
+export RAW_DATA_DIR=/path/to/data       # Linux/macOS
+```
+
+The internal scripts must be run before the external ones: each `internal/` script fits the M imputation models and writes the fitted models, imputers, scalers, and training survival reference as artefacts in the working directory; the matching `external/` script then loads those artefacts. Run everything from a single working directory, e.g.:
+
+```
+python internal/cox_internal.py
+python external/cox_external.py
+```
+
 ## Data availability
 
-The patient-level datasets are not included in this repository because they contain confidential clinical information and are governed by the respective ethics approvals (Greater Manchester South REC 20/NW/0397; Cambridge University Hospitals NHS Foundation Trust R&D A097432). Each script expects a local CSV path defined at the top of the file (e.g. `DATA_PATH` / `INTERNAL_CSV` / `EXTERNAL_CSV`); update these to point to your own data. Data may be available from the corresponding author on reasonable request and subject to the relevant data governance approvals.
+The patient-level datasets are not included in this repository because they contain confidential clinical information and are governed by the respective ethics approvals (Greater Manchester South REC 20/NW/0397; Cambridge University Hospitals NHS Foundation Trust R&D A097432). Data may be available from the corresponding author on reasonable request and subject to the relevant data governance approvals.
 
 ## Reproducibility
 
-All scripts use a fixed random seed (42). Missing data are handled with multiple imputation by chained equations (MICE, M = 10); the training-derived imputer and scaler are saved and applied to the test and external sets without refitting to prevent data leakage.
+All scripts use a fixed random seed (42). Missing data are handled with multiple imputation by chained equations (MICE, M = 10). The training-derived imputers and scalers are saved and applied to the test and external sets without refitting to prevent data leakage. Internal and external validation both pool predictions across all M imputations (risks are averaged; survival probabilities are averaged across the common training time grid).
 
 ## License
 
